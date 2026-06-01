@@ -1,0 +1,135 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.6rem 1.5rem;
+  border-bottom: 1px solid #ccc;
+}
+
+.navbar-brand {
+  font-weight: bold;
+  font-size: 1rem;
+  margin-right: auto;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.nav-link.active {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+/* Layout */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.page > h1 {
+  margin-bottom: 1.2rem;
+}
+
+/* Form */
+.form {
+  border: 1px solid #ccc;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  max-width: 500px;
+}
+
+.form h2 {
+  margin-bottom: 0.8rem;
+  font-size: 1rem;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-row label {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.form-row input,
+.form-row select {
+  flex: 1;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+/* Filter row */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.filter-row select {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+/* Table */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+}
+
+th {
+  font-weight: bold;
+}
+
+/* Buttons */
+button {
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  font-size: 13px;
+  border: 1px solid #888;
+  background: none;
+}
+
+button:hover {
+  background: #f0f0f0;
+}
+
+/* Error */
+.error {
+  color: red;
+  margin-bottom: 0.8rem;
+}
