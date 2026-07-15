@@ -2,6 +2,7 @@ package br.edu.infnet.petclinic.pet;
 
 import br.edu.infnet.petclinic.pet.dto.PetRequest;
 import br.edu.infnet.petclinic.pet.dto.PetResponse;
+import br.edu.infnet.petclinic.pet.dto.PetRevisionResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,11 @@ public class PetController {
     @GetMapping("/{id}")
     public PetResponse getById(@PathVariable Long id) {
         return service.findById(id);
+    }
+
+    @GetMapping("/{id}/history")
+    public List<PetRevisionResponse> getHistory(@PathVariable Long id) {
+        return service.findHistory(id);
     }
 
     @PostMapping

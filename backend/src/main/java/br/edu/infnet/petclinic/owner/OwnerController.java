@@ -2,6 +2,7 @@ package br.edu.infnet.petclinic.owner;
 
 import br.edu.infnet.petclinic.owner.dto.OwnerRequest;
 import br.edu.infnet.petclinic.owner.dto.OwnerResponse;
+import br.edu.infnet.petclinic.owner.dto.OwnerRevisionResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,11 @@ public class OwnerController {
     @GetMapping("/{id}")
     public OwnerResponse getById(@PathVariable Long id) {
         return service.findById(id);
+    }
+
+    @GetMapping("/{id}/history")
+    public List<OwnerRevisionResponse> getHistory(@PathVariable Long id) {
+        return service.findHistory(id);
     }
 
     @PostMapping

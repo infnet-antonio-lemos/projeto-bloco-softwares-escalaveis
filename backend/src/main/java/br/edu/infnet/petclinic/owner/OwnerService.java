@@ -2,7 +2,15 @@ package br.edu.infnet.petclinic.owner;
 
 import br.edu.infnet.petclinic.owner.dto.OwnerRequest;
 import br.edu.infnet.petclinic.owner.dto.OwnerResponse;
+import br.edu.infnet.petclinic.owner.dto.OwnerRevisionResponse;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.envers.AuditReader;
+import org.hibernate.envers.AuditReaderFactory;
+import org.hibernate.envers.DefaultRevisionEntity;
+import org.hibernate.envers.RevisionType;
+import org.hibernate.envers.query.AuditEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +23,9 @@ import java.util.NoSuchElementException;
 public class OwnerService {
 
     private final OwnerRepository repository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public List<OwnerResponse> findAll() {
@@ -55,5 +66,31 @@ public class OwnerService {
             throw new NoSuchElementException("Owner not found: " + id);
         }
         repository.deleteById(id);
+    }
+
+    /**
+     * Retorna o histórico completo de revisões do Owner (INSERT/UPDATE/DELETE),
+     * do mais antigo para o mais recente, usando o Hibernate Envers.
+     */
+    @Transactional(readOnly = true)
+    public List<OwnerRevisionResponse> findHistory(Long id) {
+        AuditReader reader = AuditReaderFactory.get(entityManager);
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = reader.createQuery()
+                .forRevisionsOfEntity(Owner.class, false, true)
+                .add(AuditEntity.id().eq(id))
+                .addOrder(AuditEntity.revisionNumber().asc())
+                .getResultList();
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("No history found for Owner: " + id);
+        }
+
+        return rows.stream()
+                .map(row -> OwnerRevisionResponse.from(
+                        (Owner) row[0],
+                        (DefaultRevisionEntity) row[1],
+                        (RevisionType) row[2]))
+                .toList();
     }
 }
