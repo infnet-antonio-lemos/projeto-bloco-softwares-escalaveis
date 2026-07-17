@@ -1,0 +1,232 @@
+{
+  "info": {
+    "name": "Pet Clinic API",
+    "description": "Collection para testar a API do Pet Clinic (owners e pets, com histórico de auditoria via Hibernate Envers).\n\nUse a variável de coleção `baseUrl` (default http://localhost:8080). Os requests de POST guardam o id criado em `ownerId` / `petId`, então rode-os antes dos GET/PUT/DELETE por id.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "ownerId", "value": "" },
+    { "key": "petId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Owners",
+      "item": [
+        {
+          "name": "List owners",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/owners",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "owners"]
+            }
+          }
+        },
+        {
+          "name": "Create owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body && body.id) {",
+                  "    pm.collectionVariables.set('ownerId', body.id);",
+                  "    console.log('ownerId =', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"maria.silva@example.com\",\n  \"phone\": \"+55 11 99999-0000\",\n  \"address\": \"Rua das Flores, 123 - São Paulo/SP\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/owners",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "owners"]
+            }
+          }
+        },
+        {
+          "name": "Get owner by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/owners/{{ownerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "owners", "{{ownerId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get owner history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/owners/{{ownerId}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "owners", "{{ownerId}}", "history"]
+            }
+          }
+        },
+        {
+          "name": "Update owner",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Silva Souza\",\n  \"email\": \"maria.souza@example.com\",\n  \"phone\": \"+55 11 98888-1111\",\n  \"address\": \"Av. Paulista, 1000 - São Paulo/SP\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/owners/{{ownerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "owners", "{{ownerId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete owner",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/owners/{{ownerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "owners", "{{ownerId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pets",
+      "item": [
+        {
+          "name": "List pets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pets"]
+            }
+          }
+        },
+        {
+          "name": "List pets (filter by ownerId & species)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pets?ownerId={{ownerId}}&species=DOG",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pets"],
+              "query": [
+                { "key": "ownerId", "value": "{{ownerId}}" },
+                { "key": "species", "value": "DOG", "description": "DOG | CAT | BIRD | RABBIT | OTHER" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create pet",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body && body.id) {",
+                  "    pm.collectionVariables.set('petId', body.id);",
+                  "    console.log('petId =', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rex\",\n  \"species\": \"DOG\",\n  \"breed\": \"Labrador\",\n  \"birthDate\": \"2021-05-10\",\n  \"ownerId\": {{ownerId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pets"]
+            }
+          }
+        },
+        {
+          "name": "Get pet by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pets/{{petId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pets", "{{petId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get pet history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pets/{{petId}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pets", "{{petId}}", "history"]
+            }
+          }
+        },
+        {
+          "name": "Update pet",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rex\",\n  \"species\": \"DOG\",\n  \"breed\": \"Golden Retriever\",\n  \"birthDate\": \"2021-05-10\",\n  \"ownerId\": {{ownerId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pets/{{petId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pets", "{{petId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete pet",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pets/{{petId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pets", "{{petId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
