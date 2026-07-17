@@ -114,5 +114,14 @@ flowchart LR
     end
 
     HTTP(["HTTP Client\n/api/owners\n/api/pets"]) --> C
-    E -->|H2 in-memory| DB[("petclinicdb")]
+    E -->|JPA / Hibernate| DB[("petclinicdb")]
 ```
+
+O acesso ao banco é feito via JPA/Hibernate e o datasource concreto é
+escolhido por profile do Spring, sem alterar o código de domínio:
+
+- **Perfil padrão** — H2 in-memory (`ddl-auto=create-drop`), usado em dev/testes.
+- **Perfil `postgres`** — PostgreSQL persistente (`ddl-auto=update`,
+  `PostgreSQLDialect`), ativado com `SPRING_PROFILES_ACTIVE=postgres`.
+
+---
