@@ -128,6 +128,19 @@ button:hover {
   background: #f0f0f0;
 }
 
+/* Appointment status */
+.status-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid currentColor;
+  font-size: 12px;
+}
+
+.status-scheduled { color: #1d4ed8; }
+.status-completed { color: #15803d; }
+.status-cancelled { color: #b91c1c; }
+.status-no_show   { color: #a16207; }
+
 /* Error */
 .error {
   color: red;
