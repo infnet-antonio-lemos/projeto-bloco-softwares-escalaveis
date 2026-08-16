@@ -52,8 +52,4 @@ flowchart TB
 | `db` | 5432 | PostgreSQL com duas databases independentes |
 | `frontend` | 3000 | SPA React servida por nginx |
 
-O monólito **saiu da porta 8080**, que passou ao gateway. Como o frontend sempre falou
-com `/api` relativo, essa troca foi transparente para ele: só mudou o `proxy_pass` do
-nginx.
-
 ---
