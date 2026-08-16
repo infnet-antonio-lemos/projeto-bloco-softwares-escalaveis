@@ -12,9 +12,20 @@ import java.time.LocalDateTime;
  * pelo cliente Feign. O cliente informa apenas o que ele sabe.
  */
 public record AppointmentRequest(
-    @NotNull Long petId,
-    @NotNull @Future LocalDateTime scheduledAt,
-    @NotBlank String veterinarian,
+    @NotNull(message = "Selecione o pet da consulta.")
+    Long petId,
+
+    // As mensagens são frases completas porque o GlobalExceptionHandler devolve
+    // apenas o defaultMessage — sem o nome do campo — direto para a tela.
+    @NotNull(message = "Informe a data e a hora da consulta.")
+    @Future(message = "A data da consulta deve ser no futuro.")
+    LocalDateTime scheduledAt,
+
+    @NotBlank(message = "Informe o veterinário responsável.")
+    String veterinarian,
+
     String reason,
-    @Size(max = 1000) String notes
+
+    @Size(max = 1000, message = "As observações devem ter no máximo 1000 caracteres.")
+    String notes
 ) {}

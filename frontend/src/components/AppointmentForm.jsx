@@ -6,6 +6,15 @@ const EMPTY = { petId: '', scheduledAt: '', veterinarian: '', reason: '', notes:
 // trabalha com 'YYYY-MM-DDTHH:mm' — recortar os segundos alinha os dois formatos.
 const toInputValue = (isoDateTime) => (isoDateTime ? isoDateTime.slice(0, 16) : '');
 
+// Espelha o @Future do AppointmentRequest no próprio seletor de data: sem isto o
+// browser aceita qualquer data e a regra só se manifesta como 400 depois do submit.
+// toISOString() é UTC, então descontamos o offset para obter o horário local.
+const nowAsInputValue = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
+};
+
 export default function AppointmentForm({ initial, pets, onSubmit, onCancel }) {
   const [form, setForm] = useState(EMPTY);
 
@@ -48,6 +57,7 @@ export default function AppointmentForm({ initial, pets, onSubmit, onCancel }) {
         <input
           name="scheduledAt"
           type="datetime-local"
+          min={nowAsInputValue()}
           value={form.scheduledAt}
           onChange={handle}
           required
