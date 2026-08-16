@@ -9,29 +9,74 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Cria a segunda database (appointmentsdb) na primeira inicialização do volume
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-petclinic} -d petclinicdb"]
       interval: 5s
       timeout: 3s
       retries: 10
 
+  # Registro de serviços: precisa estar de pé antes dos demais para que se registrem
+  discovery-server:
+    build: ./discovery-server
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8761/actuator/health | grep -q UP"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Monolito (contexto Patient Registry): owners + pets
   backend:
     build: ./backend
     depends_on:
       db:
+        condition: service_healthy
+      discovery-server:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: postgres
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/petclinicdb
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-petclinic}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-petclinic}
+      EUREKA_URL: http://discovery-server:8761/eureka
+    ports:
+      - "8081:8081"
+
+  # Microsserviço (contexto Scheduling): consultas, com database própria
+  appointment-service:
+    build: ./appointment-service
+    depends_on:
+      db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/appointmentsdb
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-petclinic}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-petclinic}
+      EUREKA_URL: http://discovery-server:8761/eureka
+    ports:
+      - "8082:8082"
+
+  # Ponto único de entrada da API
+  api-gateway:
+    build: ./api-gateway
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://discovery-server:8761/eureka
     ports:
       - "8080:8080"
 
   frontend:
     build: ./frontend
     depends_on:
-      - backend
+      - api-gateway
     ports:
       - "3000:80"
 

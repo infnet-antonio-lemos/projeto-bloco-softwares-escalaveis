@@ -14,7 +14,11 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOrigins("http://localhost:5173")
+                        // :5173 é o dev server do Vite; :3000 é o nginx do Docker.
+                        // O gateway repassa o header Origin, então esta lista precisa
+                        // acompanhar a de CorsConfig do api-gateway — caso contrário o
+                        // monolito rejeita com 403 uma requisição que o gateway já aprovou.
+                        .allowedOrigins("http://localhost:5173", "http://localhost:3000")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                         .allowedHeaders("*");
             }
