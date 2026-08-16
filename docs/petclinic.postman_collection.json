@@ -1,13 +1,26 @@
 {
   "info": {
     "name": "Pet Clinic API",
-    "description": "Collection para testar a API do Pet Clinic (owners e pets, com histórico de auditoria via Hibernate Envers).\n\nUse a variável de coleção `baseUrl` (default http://localhost:8080). Os requests de POST guardam o id criado em `ownerId` / `petId`, então rode-os antes dos GET/PUT/DELETE por id.",
+    "description": "Collection para testar a API do Pet Clinic.\n\nArquitetura de microsservicos: todas as chamadas passam pelo **api-gateway** (`baseUrl`, default http://localhost:8080), que roteia `/api/owners` e `/api/pets` para o monolito e `/api/appointments` para o appointment-service.\n\nOwners e Pets suportam historico de auditoria via Hibernate Envers (`/{id}/history`).\n\nOs requests de POST guardam o id criado em `ownerId` / `petId` / `appointmentId`, entao rode-os antes dos GET/PUT/PATCH/DELETE por id.\n\nA pasta **Appointments** demonstra a comunicacao entre servicos: o POST envia apenas `petId`, e a resposta traz `petName`, `ownerId` e `ownerName` obtidos do monolito via OpenFeign.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "ownerId", "value": "" },
-    { "key": "petId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "ownerId",
+      "value": ""
+    },
+    {
+      "key": "petId",
+      "value": ""
+    },
+    {
+      "key": "appointmentId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -20,8 +33,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/owners",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "owners"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "owners"
+              ]
             }
           }
         },
@@ -45,15 +63,25 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"maria.silva@example.com\",\n  \"phone\": \"+55 11 99999-0000\",\n  \"address\": \"Rua das Flores, 123 - São Paulo/SP\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/owners",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "owners"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "owners"
+              ]
             }
           }
         },
@@ -64,8 +92,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/owners/{{ownerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "owners", "{{ownerId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "owners",
+                "{{ownerId}}"
+              ]
             }
           }
         },
@@ -76,8 +110,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/owners/{{ownerId}}/history",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "owners", "{{ownerId}}", "history"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "owners",
+                "{{ownerId}}",
+                "history"
+              ]
             }
           }
         },
@@ -85,15 +126,26 @@
           "name": "Update owner",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Maria Silva Souza\",\n  \"email\": \"maria.souza@example.com\",\n  \"phone\": \"+55 11 98888-1111\",\n  \"address\": \"Av. Paulista, 1000 - São Paulo/SP\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/owners/{{ownerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "owners", "{{ownerId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "owners",
+                "{{ownerId}}"
+              ]
             }
           }
         },
@@ -104,8 +156,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/owners/{{ownerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "owners", "{{ownerId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "owners",
+                "{{ownerId}}"
+              ]
             }
           }
         }
@@ -121,8 +179,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/pets",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "pets"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pets"
+              ]
             }
           }
         },
@@ -133,11 +196,23 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/pets?ownerId={{ownerId}}&species=DOG",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "pets"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pets"
+              ],
               "query": [
-                { "key": "ownerId", "value": "{{ownerId}}" },
-                { "key": "species", "value": "DOG", "description": "DOG | CAT | BIRD | RABBIT | OTHER" }
+                {
+                  "key": "ownerId",
+                  "value": "{{ownerId}}"
+                },
+                {
+                  "key": "species",
+                  "value": "DOG",
+                  "description": "DOG | CAT | BIRD | RABBIT | OTHER"
+                }
               ]
             }
           }
@@ -162,15 +237,25 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Rex\",\n  \"species\": \"DOG\",\n  \"breed\": \"Labrador\",\n  \"birthDate\": \"2021-05-10\",\n  \"ownerId\": {{ownerId}}\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/pets",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "pets"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pets"
+              ]
             }
           }
         },
@@ -181,8 +266,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/pets/{{petId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "pets", "{{petId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pets",
+                "{{petId}}"
+              ]
             }
           }
         },
@@ -193,8 +284,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/pets/{{petId}}/history",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "pets", "{{petId}}", "history"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pets",
+                "{{petId}}",
+                "history"
+              ]
             }
           }
         },
@@ -202,15 +300,26 @@
           "name": "Update pet",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Rex\",\n  \"species\": \"DOG\",\n  \"breed\": \"Golden Retriever\",\n  \"birthDate\": \"2021-05-10\",\n  \"ownerId\": {{ownerId}}\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/pets/{{petId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "pets", "{{petId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pets",
+                "{{petId}}"
+              ]
             }
           }
         },
@@ -221,10 +330,368 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/pets/{{petId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "pets", "{{petId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pets",
+                "{{petId}}"
+              ]
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "description": "CRUD de consultas, servido pelo appointment-service. Rode 'Create pet' antes, para que a variavel petId esteja preenchida.",
+      "item": [
+        {
+          "name": "List appointments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List appointments by pet",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments?petId={{petId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "petId",
+                  "value": "{{petId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List appointments by owner",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments?ownerId=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "ownerId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List appointments by status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments?status=SCHEDULED",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "SCHEDULED"
+                }
+              ]
+            },
+            "description": "Valores: SCHEDULED, COMPLETED, CANCELLED, NO_SHOW"
+          }
+        },
+        {
+          "name": "Create appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"petId\": {{petId}},\n  \"scheduledAt\": \"2026-12-01T10:00:00\",\n  \"veterinarian\": \"Dra. Beatriz Nunes\",\n  \"reason\": \"Check-up geral\",\n  \"notes\": \"Trazer exames anteriores\"\n}"
+            },
+            "description": "Envia apenas petId. O appointment-service chama GET /api/pets/{id} no monolito (OpenFeign + Eureka) para resolver o tutor e gravar o snapshot de petName/ownerName."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body && body.id) {",
+                  "    pm.collectionVariables.set('appointmentId', body.id);",
+                  "    console.log('appointmentId =', body.id);",
+                  "}",
+                  "// Prova da comunicacao entre servicos: nada disso foi enviado no request",
+                  "pm.test('dados do pet vieram do monolito via Feign', () => {",
+                  "    pm.expect(body.petName).to.be.a('string').and.not.empty;",
+                  "    pm.expect(body.ownerId).to.not.be.null;",
+                  "    pm.expect(body.ownerName).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get appointment by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointmentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update appointment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointmentId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"petId\": {{petId}},\n  \"scheduledAt\": \"2026-12-02T15:30:00\",\n  \"veterinarian\": \"Dr. Marcos Vieira\",\n  \"reason\": \"Check-up geral - reagendado\",\n  \"notes\": \"Horario alterado a pedido do tutor\"\n}"
+            },
+            "description": "Reconsulta o monolito e atualiza o snapshot de petName/ownerName."
+          }
+        },
+        {
+          "name": "Complete appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointmentId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cancel appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointmentId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CANCELLED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete appointment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointmentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create appointment - pet inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"petId\": 999999,\n  \"scheduledAt\": \"2026-12-03T09:00:00\",\n  \"veterinarian\": \"Dra. Beatriz Nunes\",\n  \"reason\": \"Consulta\"\n}"
+            },
+            "description": "Demonstra a traducao de erro remoto: o monolito responde 404, o microsservico converte em NoSuchElementException -> 404. Se o monolito estivesse fora do ar, a resposta seria 503."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "// O 404 vem do monolito e e propagado pelo microsservico",
+                  "pm.test('mensagem do monolito propagada', () =>",
+                  "    pm.expect(pm.response.text()).to.include('Pet not found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create appointment - data no passado (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"petId\": {{petId}},\n  \"scheduledAt\": \"2020-01-01T10:00:00\",\n  \"veterinarian\": \"Dra. Beatriz Nunes\",\n  \"reason\": \"Consulta\"\n}"
+            },
+            "description": "scheduledAt e validado com @Future."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
