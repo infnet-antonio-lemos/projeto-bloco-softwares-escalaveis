@@ -2,14 +2,16 @@ package br.edu.infnet.appointment.appointment;
 
 import br.edu.infnet.appointment.appointment.dto.AppointmentRequest;
 import br.edu.infnet.appointment.appointment.dto.AppointmentResponse;
-import br.edu.infnet.appointment.client.PetClient;
-import br.edu.infnet.appointment.client.dto.PetSummary;
-import br.edu.infnet.appointment.config.PetRegistryUnavailableException;
-import feign.FeignException;
+import br.edu.infnet.appointment.events.DomainEventPublisher;
+import br.edu.infnet.appointment.events.EventContract;
+import br.edu.infnet.appointment.events.dto.AppointmentSnapshot;
+import br.edu.infnet.appointment.projection.PetDirectory;
+import br.edu.infnet.appointment.projection.ResolvedPet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -19,7 +21,8 @@ import java.util.NoSuchElementException;
 public class AppointmentService {
 
     private final AppointmentRepository repository;
-    private final PetClient petClient;
+    private final PetDirectory petDirectory;
+    private final DomainEventPublisher events;
 
     @Transactional(readOnly = true)
     public List<AppointmentResponse> findAll(Long petId, Long ownerId, AppointmentStatus status) {
@@ -43,10 +46,10 @@ public class AppointmentService {
     }
 
     public AppointmentResponse create(AppointmentRequest request) {
-        PetSummary pet = fetchPet(request.petId());
+        ResolvedPet pet = petDirectory.resolve(request.petId());
         checkVetAvailability(request);
 
-        Appointment appointment = Appointment.builder()
+        Appointment appointment = repository.save(Appointment.builder()
                 .petId(pet.id())
                 .ownerId(pet.ownerId())
                 .petName(pet.name())
@@ -56,18 +59,23 @@ public class AppointmentService {
                 .reason(request.reason())
                 .notes(request.notes())
                 .status(AppointmentStatus.SCHEDULED)
-                .build();
-        return AppointmentResponse.from(repository.save(appointment));
+                .build());
+
+        events.publish(EventContract.APPOINTMENT_SCHEDULED, "appointment", appointment.getId(),
+                AppointmentSnapshot.of(appointment, AppointmentSnapshot.TRIGGER_USER));
+        return AppointmentResponse.from(appointment);
     }
 
     public AppointmentResponse update(Long id, AppointmentRequest request) {
         Appointment appointment = require(id);
-        // Reconsulta o monolito: o pet pode ter mudado de tutor ou de nome desde o agendamento
-        PetSummary pet = fetchPet(request.petId());
-        // Só revalida a agenda se o horário ou o veterinário mudaram — caso contrário
-        // a própria consulta sendo editada apareceria como conflito consigo mesma.
-        if (!appointment.getVeterinarian().equals(request.veterinarian())
-                || !appointment.getScheduledAt().equals(request.scheduledAt())) {
+        ResolvedPet pet = petDirectory.resolve(request.petId());
+
+        LocalDateTime previousScheduledAt = appointment.getScheduledAt();
+        boolean rescheduled = !appointment.getVeterinarian().equals(request.veterinarian())
+                || !appointment.getScheduledAt().equals(request.scheduledAt());
+        // Só revalida a agenda quando horário ou veterinário mudaram — caso contrário a
+        // própria consulta sendo editada apareceria como conflito consigo mesma.
+        if (rescheduled) {
             checkVetAvailability(request);
         }
 
@@ -79,39 +87,49 @@ public class AppointmentService {
         appointment.setVeterinarian(request.veterinarian());
         appointment.setReason(request.reason());
         appointment.setNotes(request.notes());
-        return AppointmentResponse.from(repository.save(appointment));
+        repository.save(appointment);
+
+        // Remarcação e edição de detalhes têm routing keys distintas: o tutor precisa ser
+        // avisado de uma mudança de horário, não de uma correção de observação.
+        String eventType = rescheduled
+                ? EventContract.APPOINTMENT_RESCHEDULED
+                : EventContract.APPOINTMENT_UPDATED;
+        events.publish(eventType, "appointment", appointment.getId(),
+                AppointmentSnapshot.of(appointment, AppointmentSnapshot.TRIGGER_USER,
+                        rescheduled ? previousScheduledAt : null));
+        return AppointmentResponse.from(appointment);
     }
 
     public AppointmentResponse updateStatus(Long id, AppointmentStatus status) {
         Appointment appointment = require(id);
         appointment.setStatus(status);
-        return AppointmentResponse.from(repository.save(appointment));
+        repository.save(appointment);
+
+        events.publish(eventTypeFor(status), "appointment", appointment.getId(),
+                AppointmentSnapshot.of(appointment, AppointmentSnapshot.TRIGGER_USER));
+        return AppointmentResponse.from(appointment);
     }
 
     public void delete(Long id) {
-        if (!repository.existsById(id)) {
-            throw new NoSuchElementException("Appointment not found: " + id);
-        }
-        repository.deleteById(id);
+        Appointment appointment = require(id);
+        AppointmentSnapshot snapshot =
+                AppointmentSnapshot.of(appointment, AppointmentSnapshot.TRIGGER_USER);
+        repository.delete(appointment);
+        events.publish(EventContract.APPOINTMENT_DELETED, "appointment", id, snapshot);
     }
 
     /**
-     * Chamada síncrona ao contexto Patient Registry.
-     *
-     * <p>A distinção entre os dois catch é o ponto central: 404 do monolito significa
-     * que o pet não existe (erro do cliente); qualquer outra falha significa que o
-     * serviço dependente está indisponível (erro de infraestrutura). Traduzir os dois
-     * para o mesmo status esconderia uma queda do monolito.
+     * Cada estado final tem seu próprio evento, em vez de um genérico
+     * {@code appointment.status-changed}: assim o consumidor filtra pelo binding do
+     * broker e não precisa receber tudo para descartar em código o que não lhe serve.
      */
-    private PetSummary fetchPet(Long petId) {
-        try {
-            return petClient.getPet(petId);
-        } catch (FeignException.NotFound ex) {
-            throw new NoSuchElementException("Pet not found: " + petId);
-        } catch (FeignException ex) {
-            throw new PetRegistryUnavailableException(
-                    "Cadastro de pets indisponível no momento. Tente novamente.", ex);
-        }
+    private String eventTypeFor(AppointmentStatus status) {
+        return switch (status) {
+            case SCHEDULED -> EventContract.APPOINTMENT_SCHEDULED;
+            case COMPLETED -> EventContract.APPOINTMENT_COMPLETED;
+            case CANCELLED -> EventContract.APPOINTMENT_CANCELLED;
+            case NO_SHOW -> EventContract.APPOINTMENT_NO_SHOW;
+        };
     }
 
     private Appointment require(Long id) {

@@ -19,6 +19,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     List<Appointment> findByStatusOrderByScheduledAtDesc(AppointmentStatus status);
 
+    List<Appointment> findByPetIdAndStatus(Long petId, AppointmentStatus status);
+
+    List<Appointment> findByOwnerIdAndStatus(Long ownerId, AppointmentStatus status);
+
     /** Regra de agenda: um veterinário não pode ter duas consultas ativas no mesmo horário. */
     boolean existsByVeterinarianAndScheduledAtAndStatus(
             String veterinarian, LocalDateTime scheduledAt, AppointmentStatus status);
