@@ -8,7 +8,7 @@ import org.springframework.cloud.gateway.server.mvc.config.GatewayMvcProperties;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Além do context load, verifica que as duas rotas foram realmente lidas do
+ * Além do context load, verifica que as três rotas foram realmente lidas do
  * application.properties. Sem esta asserção, um erro no prefixo das propriedades
  * (que mudou entre Gateway 4.x e 5.x) passaria despercebido: o gateway subiria
  * normalmente, apenas sem rota nenhuma, e a falha só apareceria em runtime.
