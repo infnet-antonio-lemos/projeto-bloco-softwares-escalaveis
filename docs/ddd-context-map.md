@@ -1,8 +1,15 @@
 # Context Map
 
-O sistema tem **dois contextos delimitados**, implantados como serviços separados e
-com bancos de dados independentes. A relação é **Customer/Supplier**: `Scheduling`
-consome dados de `Patient Registry`, que não conhece o consumidor.
+O sistema tem **três contextos delimitados**, implantados como serviços separados e
+com bancos de dados independentes.
+
+A integração entre eles é **Publisher/Subscriber**: cada contexto publica os fatos do
+seu domínio num exchange e não conhece quem os consome. É uma evolução do
+Customer/Supplier original — antes, `Scheduling` chamava `Patient Registry` por HTTP e
+a relação era explícita nos dois sentidos de dependência de disponibilidade. Hoje o
+publicador não sabe quem escuta: `Patient Registry` publica num exchange e nunca soube
+que `Scheduling` existe, e um assinante novo entra declarando fila e binding, sem que
+nenhuma linha do produtor mude.
 
 ```mermaid
 flowchart TD
@@ -20,16 +27,23 @@ flowchart TD
     direction TB
     SC_AR["Appointment\n«Aggregate Root»"]
     SC_VO["AppointmentStatus\nenum"]
+    SC_PV["PetView\n«Read Model»"]
 
     SC_AR -- usa --> SC_VO
+    SC_AR -- consulta --> SC_PV
   end
 
-  SC_AR -. "referencia por id (petId, ownerId)\nvia HTTP/OpenFeign — sem FK" .-> PR_E
+  PR_E -. "pet.* / owner.*\n«evento de domínio»" .-> SC_PV
+  SC_AR -. "referencia por id (petId, ownerId)\nsem FK, sem JOIN" .-> PR_E
 ```
 
-O limite entre os contextos é uma chamada HTTP, não um JOIN: `Appointment` guarda
-apenas identificadores de `Pet`/`Owner` e um snapshot dos nomes. Detalhes da
-integração em [microservice-architecture.md](microservice-architecture.md).
+O limite entre os contextos é um **evento**, não um JOIN nem uma chamada HTTP.
+`Appointment` guarda apenas identificadores de `Pet`/`Owner` e um snapshot dos nomes;
+`PetView` é um modelo de leitura mantido pelos eventos do contexto vizinho — uma
+tradução para a linguagem do Scheduling, não uma cópia do modelo alheio.
+
+Detalhes da integração em [microservice-architecture.md](microservice-architecture.md)
+e do fluxo de eventos em [event-driven-architecture.md](event-driven-architecture.md).
 
 ---
 
@@ -165,15 +179,16 @@ classDiagram
 ```
 
 Note que `AppointmentRequest` **não** tem `ownerId`: o tutor e os nomes são
-resolvidos pelo microsserviço consultando o `petclinic-backend`.
+resolvidos pelo microsserviço na sua projeção local `PetView`, alimentada pelos
+eventos `pet.*` e `owner.*` do Patient Registry.
 
 ---
 
 # Camadas da Arquitetura
 
-Ambos os serviços seguem o mesmo empilhamento de camadas. O que muda no
-`appointment-service` é a origem dos dados externos: um cliente HTTP no lugar
-de um repositório.
+Os serviços seguem o mesmo empilhamento de camadas. O que muda no
+`appointment-service` é a origem dos dados externos: um modelo de leitura local,
+mantido por eventos, no lugar de uma consulta ao outro contexto.
 
 ```mermaid
 flowchart LR
@@ -198,26 +213,39 @@ flowchart LR
         S2["AppointmentService\n«Application Layer»"]
         R2["AppointmentRepository\n«Repository»"]
         E2["Appointment\n«Domain Layer»"]
-        F2["PetClient\n«Anti-Corruption Layer»"]
+        P2["PetDirectory\n«Read Model»"]
+        L2["RegistryEventListener\n«Anti-Corruption Layer»"]
+        F2["PetClient\n«fallback síncrono»"]
 
         C2 -->|chama| S2
         S2 -->|usa| R2
-        S2 -->|consulta| F2
+        S2 -->|consulta| P2
+        P2 -.->|cache miss| F2
+        L2 -->|alimenta| P2
         R2 -->|persiste| E2
         S2 -->|lê/escreve| E2
     end
 
+    MQ{{"RabbitMQ"}}
+
     GW -->|"/api/owners, /api/pets"| C
     GW -->|"/api/appointments"| C2
-    F2 -->|"OpenFeign\nGET /api/pets/{id}"| C
+    S -->|"publica pet.* owner.*"| MQ
+    MQ --> L2
+    S2 -->|"publica appointment.*"| MQ
+    F2 -.->|"OpenFeign\nGET /api/pets/{id}"| C
 
     E -->|JPA / Hibernate| DB[("petclinicdb")]
     E2 -->|JPA / Hibernate| DB2[("appointmentsdb")]
 ```
 
-`PetClient` faz o papel de camada anticorrupção: traduz o `PetResponse` do outro
-contexto para o `PetSummary` que o Scheduling entende, e converte as falhas remotas
-em exceções do próprio domínio (404 para pet inexistente, 503 para serviço fora do ar).
+A camada anticorrupção migrou do cliente HTTP para o **listener**: `RegistryEventListener`
+traduz o evento do Patient Registry em `PetView`, o vocabulário que o Scheduling entende.
+O modelo de um contexto nunca vaza para o outro — o que trafega é o payload do evento,
+deliberadamente desacoplado das entidades JPA.
+
+`PetClient` permanece como fallback e mantém sua tradução de falhas remotas em exceções
+do próprio domínio (404 para pet inexistente, 503 para serviço fora do ar).
 
 O acesso ao banco é feito via JPA/Hibernate e o datasource concreto é
 escolhido por profile do Spring, sem alterar o código de domínio:

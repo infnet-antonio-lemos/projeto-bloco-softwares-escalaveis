@@ -1,0 +1,64 @@
+# SPA servida por nginx. Sem estado e sem dependências de partida: pode escalar
+# livremente e é o primeiro componente a ficar pronto.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # uid 101 é o usuário nginx da imagem nginx-unprivileged.
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+        - name: frontend
+          image: petclinic/frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            # Com a raiz somente-leitura, o nginx precisa de diretórios graváveis
+            # para o arquivo de pid e para os caches de proxy e de upload.
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /tmp
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}

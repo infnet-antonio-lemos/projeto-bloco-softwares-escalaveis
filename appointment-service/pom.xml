@@ -54,12 +54,9 @@
 			<artifactId>spring-boot-starter-amqp</artifactId>
 		</dependency>
 
-		<!-- Spring Cloud: descoberta de serviços + cliente HTTP declarativo com
-		     balanceamento de carga (resolve lb://petclinic-backend pelo Eureka) -->
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
-		</dependency>
+		<!-- Cliente HTTP declarativo, usado só no fallback do PetDirectory. O endereço
+		     do monolito vem por configuração (BACKEND_URL); quem balanceia é o Service
+		     do Kubernetes, não a aplicação. -->
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
@@ -119,12 +116,11 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<!-- Testes não devem tentar se registrar no Eureka nem falar com o
-					     broker. Os testes de integração que precisam de RabbitMQ sobem um
-					     via Testcontainers e reativam o flag com @SpringBootTest(properties=...),
-					     que tem precedência sobre o application.properties. -->
+					<!-- Testes não devem falar com o broker. Os testes de integração que
+					     precisam de RabbitMQ sobem um via Testcontainers e reativam o flag
+					     com @SpringBootTest(properties=...), que tem precedência sobre o
+					     application.properties. -->
 					<environmentVariables>
-						<EUREKA_ENABLED>false</EUREKA_ENABLED>
 						<EVENTS_ENABLED>false</EVENTS_ENABLED>
 					</environmentVariables>
 				</configuration>

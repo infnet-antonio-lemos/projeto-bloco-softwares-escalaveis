@@ -74,13 +74,6 @@
 			<artifactId>spring-boot-starter-amqp</artifactId>
 		</dependency>
 
-		<!-- Spring Cloud: registra o monolito no Eureka para que o gateway e o
-		     appointment-service o alcancem por nome lógico (lb://petclinic-backend) -->
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
-		</dependency>
-
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
@@ -119,9 +112,8 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<!-- Testes não devem tentar se registrar no Eureka -->
+					<!-- Testes não devem publicar no broker -->
 					<environmentVariables>
-						<EUREKA_ENABLED>false</EUREKA_ENABLED>
 						<EVENTS_ENABLED>false</EVENTS_ENABLED>
 					</environmentVariables>
 				</configuration>

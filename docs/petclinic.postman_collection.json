@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Pet Clinic API",
-    "description": "Collection para testar a API do Pet Clinic.\n\nArquitetura de microsservicos: todas as chamadas passam pelo **api-gateway** (`baseUrl`, default http://localhost:8080), que roteia `/api/owners` e `/api/pets` para o monolito e `/api/appointments` para o appointment-service.\n\nOwners e Pets suportam historico de auditoria via Hibernate Envers (`/{id}/history`).\n\nOs requests de POST guardam o id criado em `ownerId` / `petId` / `appointmentId`, entao rode-os antes dos GET/PUT/PATCH/DELETE por id.\n\nA pasta **Appointments** demonstra a comunicacao entre servicos: o POST envia apenas `petId`, e a resposta traz `petName`, `ownerId` e `ownerName` obtidos do monolito via OpenFeign.",
+    "description": "Collection para testar a API do Pet Clinic.\n\nArquitetura de microsservicos: todas as chamadas passam pelo **api-gateway** (`baseUrl`, default http://localhost:8080), que roteia `/api/owners` e `/api/pets` para o monolito e `/api/appointments` para o appointment-service.\n\nOwners e Pets suportam historico de auditoria via Hibernate Envers (`/{id}/history`).\n\nOs requests de POST guardam o id criado em `ownerId` / `petId` / `appointmentId`, entao rode-os antes dos GET/PUT/PATCH/DELETE por id.\n\nA pasta **Appointments** demonstra a comunicacao entre servicos: o POST envia apenas `petId`, e a resposta traz `petName`, `ownerId` e `ownerName` lidos da projecao local `pet_views`, que o appointment-service mantem consumindo os eventos `pet.*`/`owner.*`. O OpenFeign so entra como fallback, quando a projecao ainda nao conhece o pet.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -19,6 +19,10 @@
     },
     {
       "key": "appointmentId",
+      "value": ""
+    },
+    {
+      "key": "correlationId",
       "value": ""
     }
   ],
@@ -458,7 +462,7 @@
               "mode": "raw",
               "raw": "{\n  \"petId\": {{petId}},\n  \"scheduledAt\": \"2026-12-01T10:00:00\",\n  \"veterinarian\": \"Dra. Beatriz Nunes\",\n  \"reason\": \"Check-up geral\",\n  \"notes\": \"Trazer exames anteriores\"\n}"
             },
-            "description": "Envia apenas petId. O appointment-service chama GET /api/pets/{id} no monolito (OpenFeign + Eureka) para resolver o tutor e gravar o snapshot de petName/ownerName."
+            "description": "Envia apenas petId. O appointment-service resolve o tutor e os nomes na sua projeção local pet_views, alimentada pelos eventos pet.*/owner.* do monolito — sem chamada HTTP no caminho crítico. O Feign só entra se o pet ainda não estiver na projeção. Ao criar, publica appointment.scheduled no exchange petclinic.scheduling, disponível para qualquer assinante que declare uma fila com binding appointment.*."
           },
           "event": [
             {
@@ -688,6 +692,48 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete pet (dispara cascata de cancelamento)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}",
+                "description": "Amarra a requisição a todos os eventos que ela disparar."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pets/{{petId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pets",
+                "{{petId}}"
+              ]
+            },
+            "description": "Excluir um pet publica pet.deleted. O appointment-service apaga o pet da sua projecao local e cancela as consultas agendadas, publicando um appointment.cancelled por consulta, com o campo trigger explicando a causa. O monolito nao chama o appointment-service em momento nenhum.\n\nDepois de rodar: aguarde alguns segundos e liste as consultas do pet (devem estar CANCELLED). Para acompanhar a cadeia pelo correlationId enviado no header, use:\n  kubectl -n petclinic logs deploy/backend | grep <correlationId>  (e o mesmo para appointment-service)"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Gera um correlation id novo a cada execução: é ele que permite recuperar",
+                  "// depois a cadeia inteira de eventos disparada por esta requisição.",
+                  "pm.collectionVariables.set('correlationId', pm.variables.replaceIn('{{$guid}}'));"
                 ]
               }
             }

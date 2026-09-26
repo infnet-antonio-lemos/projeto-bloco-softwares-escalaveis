@@ -8,8 +8,9 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  * Microsserviço do contexto delimitado <b>Scheduling</b>: agenda consultas veterinárias.
  *
  * <p>Mantém banco próprio ({@code appointmentsdb}) e nunca acessa as tabelas do monolito.
- * Os dados do pet e do tutor são obtidos via HTTP pelo {@code PetClient} (OpenFeign),
- * que resolve o endereço do {@code petclinic-backend} pelo Eureka.
+ * O caminho normal lê a projeção local alimentada por eventos; o {@code PetClient}
+ * (OpenFeign) só entra como fallback, apontando para a URL do monolito injetada por
+ * {@code BACKEND_URL}.
  */
 @SpringBootApplication
 @EnableFeignClients

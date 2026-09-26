@@ -1,0 +1,32 @@
+# Configuração não-sensível, compartilhada por todos os serviços.
+#
+# Separada do Secret de propósito: ConfigMap aparece em `kubectl describe` e em logs
+# de diagnóstico sem expor nada. Senha em ConfigMap é o erro mais comum — e o mais
+# silencioso — de um manifesto de Kubernetes.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: petclinic-config
+data:
+  SPRING_PROFILES_ACTIVE: "postgres"
+  # Nomes de Service do cluster: o DNS interno resolve para o ClusterIP, e este
+  # é o único ponto que precisaria mudar para apontar a um banco gerenciado.
+  # Alvos das rotas do gateway e do fallback Feign. Nome de Service: o DNS do
+  # cluster resolve para o ClusterIP e o kube-proxy balanceia entre os pods —
+  # é a plataforma que faz service discovery, não a aplicação.
+  BACKEND_URL: "http://backend:8081"
+  APPOINTMENT_SERVICE_URL: "http://appointment-service:8082"
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+data:
+  # Padrão "database per service": mesma instância, schemas isolados.
+  # Executado apenas na primeira inicialização do volume.
+  01-create-databases.sql: |
+    CREATE DATABASE appointmentsdb;

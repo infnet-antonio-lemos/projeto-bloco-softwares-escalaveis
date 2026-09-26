@@ -1,0 +1,131 @@
+# Integração contínua: a cada push, prova que o código compila, que os testes passam
+# (inclusive os que sobem um RabbitMQ de verdade) e que as imagens e os manifests
+# continuam construíveis.
+#
+# A divisão em jobs paralelos é proposital: cada módulo falha por conta própria, e o
+# relatório diz qual quebrou sem que seja preciso ler um log único de 2000 linhas.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Um push novo no mesmo branch cancela a execução anterior: não faz sentido gastar
+# runner validando um commit que já foi substituído.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  java:
+    name: "Testes · ${{ matrix.module }}"
+    runs-on: ubuntu-latest
+    strategy:
+      # Sem fail-fast: um módulo quebrado não deve esconder o estado dos outros.
+      fail-fast: false
+      matrix:
+        module:
+          - api-gateway
+          - backend
+          - appointment-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+          # Cache do ~/.m2 por módulo: sem ele, cada job rebaixa o repositório
+          # inteiro do Maven e o pipeline passa mais tempo baixando que testando.
+          cache: maven
+
+      - name: Testes
+        working-directory: ${{ matrix.module }}
+        # Os testes de integração (Testcontainers) sobem RabbitMQ em container.
+        # O runner do GitHub já tem Docker disponível; sem ele, as classes marcadas
+        # com @EnabledIf("dockerAvailable") são ignoradas em vez de falharem.
+        run: ./mvnw -B verify
+
+      - name: Publicar relatório de testes
+        # Relatório precisa sair mesmo — e principalmente — quando a suíte falha.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-${{ matrix.module }}
+          path: ${{ matrix.module }}/target/surefire-reports/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  frontend:
+    name: "Frontend · lint e build"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci, e não npm install: instala exatamente o que está no lock file.
+      # npm install poderia resolver versões diferentes das testadas localmente.
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  manifests:
+    name: "Kubernetes · validar manifests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Erro de YAML ou de referência quebrada no kustomization só apareceria no
+      # momento do deploy. Renderizar no CI antecipa a falha em minutos, não em horas.
+      - name: Renderizar
+        run: |
+          kubectl kustomize k8s > /tmp/manifests.yaml
+          echo "$(grep -c '^kind:' /tmp/manifests.yaml) recursos"
+
+      # Valida os recursos contra os esquemas da API do Kubernetes, sem cluster.
+      - name: Validar contra os esquemas da API
+        run: |
+          curl -sSL -o kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar xf kubeconform.tar.gz kubeconform
+          ./kubeconform -strict -summary -ignore-missing-schemas /tmp/manifests.yaml
+
+  images:
+    name: "Docker · construir ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    # Construir imagem é caro; só vale depois que os testes daquele código passaram.
+    needs: [java, frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-gateway
+          - backend
+          - appointment-service
+          - frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construir (sem publicar)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: false
+          # Cache do buildx no GitHub Actions: sem ele, cada build refaz o
+          # download de dependências do Maven dentro da imagem.
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,scope=${{ matrix.service }},mode=max

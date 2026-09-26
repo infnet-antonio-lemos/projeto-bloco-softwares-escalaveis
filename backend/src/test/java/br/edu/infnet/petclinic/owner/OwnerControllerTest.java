@@ -1,6 +1,6 @@
 package br.edu.infnet.petclinic.owner;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,7 +28,7 @@ class OwnerControllerTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Test
     void postCreatesOwnerAndReturns201() throws Exception {
@@ -105,7 +105,7 @@ class OwnerControllerTest {
                         .content(body(name, email)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(json).get("id").asLong();
+        return jsonMapper.readTree(json).get("id").asLong();
     }
 
     private static String body(String name, String email) {

@@ -2,7 +2,7 @@ package br.edu.infnet.appointment.appointment;
 
 import br.edu.infnet.appointment.client.PetClient;
 import br.edu.infnet.appointment.client.dto.PetSummary;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import feign.FeignException;
 import feign.Request;
 import feign.Response;
@@ -46,7 +46,7 @@ class AppointmentControllerTest {
     private AppointmentRepository repository;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @MockitoBean
     private PetClient petClient;
@@ -198,7 +198,7 @@ class AppointmentControllerTest {
                         .content(body(1L, futureSlot(), "Dra. Helena")))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(json).get("id").asLong();
+        return jsonMapper.readTree(json).get("id").asLong();
     }
 
     private static LocalDateTime futureSlot() {
