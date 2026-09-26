@@ -1,0 +1,108 @@
+# Contexto Scheduling. Consumidor e produtor: cada réplica abre seus próprios
+# consumidores nas filas (competing consumers), então a vazão de processamento de
+# eventos escala junto com o número de pods.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment-service
+  labels:
+    app: appointment-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: appointment-service
+  template:
+    metadata:
+      labels:
+        app: appointment-service
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: appointment-service
+          image: petclinic/appointment-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: petclinic-config
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://$(POSTGRES_HOST):$(POSTGRES_PORT)/appointmentsdb
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-credentials
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-credentials
+                  key: POSTGRES_PASSWORD
+            - name: RABBITMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-credentials
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-credentials
+                  key: RABBITMQ_PASSWORD
+          # Três probes com papéis distintos — confundi-los é a origem da maioria
+          # dos CrashLoopBackOff em aplicações JVM:
+          #
+          # startup: cobre a partida lenta da JVM. Enquanto ela não passa, as outras
+          #   duas ficam suspensas. Sem ela, a liveness mataria o pod no meio do boot,
+          #   num laço infinito de reinícios.
+          # readiness: decide se o Service manda tráfego. Falhar aqui tira o pod do
+          #   balanceamento sem reiniciá-lo — é o que se quer numa dependência
+          #   temporariamente degradada.
+          # liveness: decide se o processo precisa ser reiniciado. Deve reprovar
+          #   apenas em deadlock ou estado irrecuperável.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            periodSeconds: 20
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            # requests guia o escalonador na escolha do nó; limits protege os vizinhos.
+            # A JVM lê o limit via cgroup por causa do MaxRAMPercentage no Dockerfile —
+            # sem limit definido, ela dimensionaria o heap pela RAM do nó inteiro.
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 768Mi
+          volumeMounts:
+            # Raiz somente-leitura exige um volume gravável para o java.io.tmpdir:
+            # o Tomcat embarcado extrai arquivos temporários na partida.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

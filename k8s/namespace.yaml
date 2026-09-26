@@ -1,0 +1,8 @@
+# Namespace próprio: isola quotas, NetworkPolicies e RBAC do restante do cluster,
+# e permite apagar a stack inteira com um único `kubectl delete namespace`.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: petclinic
+  labels:
+    app.kubernetes.io/part-of: petclinic

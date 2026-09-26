@@ -13,3 +13,15 @@ SELECT * FROM (VALUES
   (5, 3, 'Luna', 'Carla Mendes', TIMESTAMP '2026-08-01 10:00:00', 'Dra. Helena Prado',  'Retorno dermatológico', 'Tratamento concluído com êxito', 'COMPLETED')
 ) AS seed(pet_id, owner_id, pet_name, owner_name, scheduled_at, veterinarian, reason, notes, status)
 WHERE NOT EXISTS (SELECT 1 FROM appointments);
+
+-- Backfill inicial da projeção de pets (pet_views).
+INSERT INTO pet_views (id, name, species, breed, owner_id, owner_name, updated_at)
+SELECT * FROM (VALUES
+  (1, 'Rex',  'DOG',    'Labrador',         1, 'Alice Souza', CURRENT_TIMESTAMP),
+  (2, 'Mimi', 'CAT',    'Siamese',          1, 'Alice Souza', CURRENT_TIMESTAMP),
+  (3, 'Thor', 'DOG',    'Golden Retriever', 2, 'Bruno Lima', CURRENT_TIMESTAMP),
+  (4, 'Coco', 'BIRD',   'Canary',           2, 'Bruno Lima', CURRENT_TIMESTAMP),
+  (5, 'Luna', 'CAT',    'Persian',          3, 'Carla Mendes', CURRENT_TIMESTAMP),
+  (6, 'Pipo', 'RABBIT', 'Holland Lop',      3, 'Carla Mendes', CURRENT_TIMESTAMP)
+) AS seed(id, name, species, breed, owner_id, owner_name, updated_at)
+WHERE NOT EXISTS (SELECT 1 FROM pet_views);

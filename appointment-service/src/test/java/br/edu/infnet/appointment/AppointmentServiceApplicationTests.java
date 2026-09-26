@@ -7,7 +7,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * Smoke test do contexto. O {@link PetClient} é substituído por um mock para que a
- * suíte não dependa do monolito nem do Eureka estarem no ar.
+ * suíte não dependa do monolito estar no ar.
  */
 @SpringBootTest(properties = "server.port=0")
 class AppointmentServiceApplicationTests {

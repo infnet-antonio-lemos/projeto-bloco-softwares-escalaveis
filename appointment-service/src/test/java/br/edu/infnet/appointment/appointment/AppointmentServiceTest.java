@@ -5,6 +5,8 @@ import br.edu.infnet.appointment.appointment.dto.AppointmentResponse;
 import br.edu.infnet.appointment.client.PetClient;
 import br.edu.infnet.appointment.client.dto.PetSummary;
 import br.edu.infnet.appointment.config.PetRegistryUnavailableException;
+import br.edu.infnet.appointment.projection.PetView;
+import br.edu.infnet.appointment.projection.PetViewRepository;
 import feign.FeignException;
 import feign.Request;
 import feign.Response;
@@ -23,12 +25,19 @@ import java.util.NoSuchElementException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Regras de negócio do agendamento, com o contexto Patient Registry substituído por
- * um mock do {@link PetClient} — a suíte não depende do monolito nem da rede.
- * O seed de data.sql é desligado para asserções determinísticas.
+ * Regras de negócio do agendamento sobre a arquitetura orientada a eventos.
+ *
+ * <p>Cada teste declara de onde vêm os dados do pet: da projeção local (caminho normal,
+ * alimentado por eventos) ou do {@link PetClient} mockado (fallback síncrono). A
+ * projeção é limpa antes de cada teste porque ela é um cache que sobrevive entre
+ * execuções no mesmo contexto — sem isso, um teste contaminaria o seguinte.
+ *
+ * <p>O seed de data.sql é desligado para asserções determinísticas.
  */
 @SpringBootTest(properties = "server.port=0")
 @TestPropertySource(properties = "spring.sql.init.mode=never")
@@ -42,12 +51,16 @@ class AppointmentServiceTest {
     @Autowired
     private AppointmentRepository repository;
 
+    @Autowired
+    private PetViewRepository petViews;
+
     @MockitoBean
     private PetClient petClient;
 
     @BeforeEach
     void clean() {
         repository.deleteAll();
+        petViews.deleteAll();
     }
 
     @Test
@@ -56,7 +69,7 @@ class AppointmentServiceTest {
 
         AppointmentResponse created = service.create(request(1L, futureSlot(), "Dra. Helena"));
 
-        // Nada disso veio do request: o ownerId e os nomes foram obtidos via Feign
+        // Nada disso veio do request: com a projeção vazia, o fallback buscou no monolito
         assertThat(created.ownerId()).isEqualTo(7L);
         assertThat(created.petName()).isEqualTo("Rex");
         assertThat(created.ownerName()).isEqualTo("Alice Souza");
@@ -76,12 +89,38 @@ class AppointmentServiceTest {
     }
 
     @Test
-    void createFailsWithUnavailableWhenRemoteServiceIsDown() {
+    void createFailsWithUnavailableWhenTheProjectionIsColdAndTheRegistryIsDown() {
         when(petClient.getPet(any())).thenThrow(feignError(500));
 
-        // Serviço fora do ar não pode ser reportado como "pet inexistente"
+        // Pet desconhecido pela projeção + monolito fora do ar = a única situação em que
+        // agendar ainda falha. Serviço indisponível nunca vira "pet inexistente".
         assertThatThrownBy(() -> service.create(request(1L, futureSlot(), "Dra. Helena")))
                 .isInstanceOf(PetRegistryUnavailableException.class);
+    }
+
+    @Test
+    void createSucceedsWithTheRegistryDownWhenTheProjectionIsWarm() {
+        when(petClient.getPet(any())).thenThrow(feignError(500));
+        petViews.save(PetView.builder()
+                .id(1L).name("Rex").ownerId(7L).ownerName("Alice Souza").build());
+
+        AppointmentResponse created = service.create(request(1L, futureSlot(), "Dra. Helena"));
+
+        assertThat(created.petName()).isEqualTo("Rex");
+        assertThat(created.ownerName()).isEqualTo("Alice Souza");
+        verify(petClient, never()).getPet(any());
+    }
+
+    @Test
+    void createAsksTheRegistryAboutAPetThatWasDeletedFromTheProjection() {
+        when(petClient.getPet(any())).thenThrow(feignError(404));
+
+        assertThatThrownBy(() -> service.create(request(1L, futureSlot(), "Dra. Helena")))
+                .isInstanceOf(NoSuchElementException.class)
+                .hasMessageContaining("Pet not found: 1");
+
+        // O tombstone evitava exatamente esta chamada
+        verify(petClient).getPet(1L);
     }
 
     @Test
@@ -112,12 +151,14 @@ class AppointmentServiceTest {
     }
 
     @Test
-    void updateRefreshesTheDenormalizedSnapshotFromTheRemoteService() {
+    void updateRefreshesTheDenormalizedSnapshotFromTheLocalProjection() {
         when(petClient.getPet(1L)).thenReturn(REX);
         AppointmentResponse created = service.create(request(1L, futureSlot(), "Dra. Helena"));
 
-        // O pet mudou de tutor no monolito depois do agendamento
-        when(petClient.getPet(1L)).thenReturn(new PetSummary(1L, "Rex", 9L, "Bruno Lima"));
+        // O pet mudou de tutor no monolito; o evento pet.updated atualizou a projeção
+        petViews.save(PetView.builder()
+                .id(1L).name("Rex").ownerId(9L).ownerName("Bruno Lima").build());
+
         AppointmentResponse updated = service.update(created.id(),
                 request(1L, futureSlot().plusDays(1), "Dra. Helena"));
 

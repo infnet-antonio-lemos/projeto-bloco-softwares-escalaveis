@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  # NodePort em vez de ClusterIP: dá acesso ao frontend sem exigir um ingress
+  # controller instalado no cluster. No WSL2 a porta do nó não roteia — use
+  # `kubectl port-forward svc/frontend 3000:80`.
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30000

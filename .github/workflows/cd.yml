@@ -1,0 +1,75 @@
+# Entrega contínua: publica as imagens no GitHub Container Registry, cada uma com a
+# tag imutável do commit que a originou.
+#
+# O deploy em si (kubectl apply) não é executado aqui: este projeto não tem cluster
+# alcançável pelo runner — o único ambiente é o minikube local, subido por
+# k8s/deploy-local.sh. Habilitar o deploy seria acrescentar um job com o KUBECONFIG
+# do cluster nos secrets e apontá-lo para `kubectl apply -k k8s`.
+# Ver docs/tp5.md §5.7.
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+# Um deploy por vez; e este não se cancela no meio, para não deixar metade das
+# imagens publicadas com a mesma tag.
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: "Publicar ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Necessária para o GITHUB_TOKEN poder escrever no GHCR — sem ela,
+      # o push falha com 403 mesmo estando autenticado.
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-gateway
+          - backend
+          - appointment-service
+          - frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Autenticar no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calcular tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/petclinic-${{ matrix.service }}
+          # Duas tags com propósitos diferentes:
+          #   sha-<commit> — imutável, é a que o manifesto de produção referencia;
+          #   latest       — conveniência para `docker run`, nunca para produção.
+          # Não há tag semver: o pipeline não é disparado por tag do git.
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Construir e publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,scope=${{ matrix.service }},mode=max

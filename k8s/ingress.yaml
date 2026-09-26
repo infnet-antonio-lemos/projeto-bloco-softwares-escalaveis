@@ -1,0 +1,32 @@
+# Entrada HTTP do cluster.
+#
+# O roteamento é deliberadamente raso: tudo cai no frontend, que já sabe repassar
+# /api/ ao gateway (ver frontend/nginx.conf). Duplicar aqui as regras de rota
+# criaria duas fontes de verdade para a mesma decisão — e a do gateway é a que vale,
+# já que é ele quem declara as rotas por caminho.
+#
+# Requer um ingress controller instalado no cluster:
+#   minikube addons enable ingress
+#
+# No WSL2 isso não basta: o IP do nó fica numa rede da VM do Docker Desktop que o host
+# não roteia, então `petclinic.local` no /etc/hosts não resolve para nada alcançável.
+# Ali o caminho é `kubectl port-forward` — ver k8s/README.md.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: petclinic
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: petclinic.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

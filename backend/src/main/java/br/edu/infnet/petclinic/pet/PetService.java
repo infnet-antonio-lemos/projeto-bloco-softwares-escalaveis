@@ -1,5 +1,8 @@
 package br.edu.infnet.petclinic.pet;
 
+import br.edu.infnet.petclinic.events.DomainEventPublisher;
+import br.edu.infnet.petclinic.events.EventContract;
+import br.edu.infnet.petclinic.events.dto.PetSnapshot;
 import br.edu.infnet.petclinic.owner.Owner;
 import br.edu.infnet.petclinic.owner.OwnerRepository;
 import br.edu.infnet.petclinic.pet.dto.PetRequest;
@@ -26,6 +29,7 @@ public class PetService {
 
     private final PetRepository petRepository;
     private final OwnerRepository ownerRepository;
+    private final DomainEventPublisher events;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -58,7 +62,9 @@ public class PetService {
                 .birthDate(request.birthDate())
                 .owner(owner)
                 .build();
-        return PetResponse.from(petRepository.save(pet));
+        Pet saved = petRepository.save(pet);
+        events.publish(EventContract.PET_CREATED, "pet", saved.getId(), snapshotOf(saved));
+        return PetResponse.from(saved);
     }
 
     public PetResponse update(Long id, PetRequest request) {
@@ -71,14 +77,30 @@ public class PetService {
         pet.setBreed(request.breed());
         pet.setBirthDate(request.birthDate());
         pet.setOwner(owner);
-        return PetResponse.from(petRepository.save(pet));
+        Pet saved = petRepository.save(pet);
+        events.publish(EventContract.PET_UPDATED, "pet", saved.getId(), snapshotOf(saved));
+        return PetResponse.from(saved);
     }
 
     public void delete(Long id) {
-        if (!petRepository.existsById(id)) {
-            throw new NoSuchElementException("Pet not found: " + id);
-        }
-        petRepository.deleteById(id);
+        Pet pet = petRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Pet not found: " + id));
+        // O snapshot é capturado antes do delete: o evento precisa dizer *o que* foi
+        // apagado, e depois do delete a informação não existe mais para ser lida.
+        PetSnapshot snapshot = snapshotOf(pet);
+        petRepository.delete(pet);
+        events.publish(EventContract.PET_DELETED, "pet", id, snapshot);
+    }
+
+    private PetSnapshot snapshotOf(Pet pet) {
+        Owner owner = pet.getOwner();
+        return new PetSnapshot(
+                pet.getId(),
+                pet.getName(),
+                pet.getSpecies() == null ? null : pet.getSpecies().name(),
+                pet.getBreed(),
+                owner == null ? null : owner.getId(),
+                owner == null ? null : owner.getName());
     }
 
     /**

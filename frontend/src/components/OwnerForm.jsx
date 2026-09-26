@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const EMPTY = { name: '', email: '', phone: '', address: '' };
 
-export default function OwnerForm({ initial, onSubmit, onCancel }) {
-  const [form, setForm] = useState(EMPTY);
+const formFor = (owner) =>
+  owner
+    ? { name: owner.name, email: owner.email, phone: owner.phone || '', address: owner.address || '' }
+    : EMPTY;
 
-  useEffect(() => {
-    setForm(initial ? { name: initial.name, email: initial.email, phone: initial.phone || '', address: initial.address || '' } : EMPTY);
-  }, [initial]);
+// O estado inicial vem de `initial` uma única vez. Trocar de registro remonta o
+// componente, porque a página passa `key={initial?.id ?? 'new'}` — é o mecanismo do
+// React para "resetar estado quando a identidade muda". A alternativa (useEffect
+// chamando setForm) renderiza duas vezes a cada troca e descarta o que o usuário
+// tiver digitado se `initial` mudar de referência por qualquer outro motivo.
+export default function OwnerForm({ initial, onSubmit, onCancel }) {
+  const [form, setForm] = useState(() => formFor(initial));
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 

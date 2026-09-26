@@ -1,0 +1,51 @@
+# Conjunto único de manifests, em escala de desenvolvimento (1 réplica por serviço).
+#
+# Não há overlays: um só ambiente, um só conjunto de arquivos.
+#
+# O `kustomization.yaml` permanece, e não é enfeite: nenhum manifesto declara
+# `namespace:` no seu metadata — quem injeta é este arquivo. Verificado: um
+# `kubectl apply -f k8s --recursive` reporta os 17 recursos como "created" sem um
+# único erro e os cria no namespace **default**, deixando `petclinic` vazio. O modo
+# correto de subir é sempre `-k`. Ver docs/tp5.md §5.7.
+#
+# Subir tudo:  kubectl apply -k k8s
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: petclinic
+
+# Rótulo comum: viabiliza `kubectl get all -l app.kubernetes.io/part-of=petclinic`
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: petclinic
+
+# Tag "dev" deixa explícito que as imagens são construídas na máquina e carregadas
+# no cluster por k8s/deploy-local.sh — não vêm de registry.
+images:
+  - name: petclinic/api-gateway
+    newTag: dev
+  - name: petclinic/backend
+    newTag: dev
+  - name: petclinic/appointment-service
+    newTag: dev
+  - name: petclinic/frontend
+    newTag: dev
+
+resources:
+  - namespace.yaml
+  - config.yaml
+  - secrets.yaml
+  - postgres/statefulset.yaml
+  - postgres/service.yaml
+  - rabbitmq/statefulset.yaml
+  - rabbitmq/service.yaml
+  - api-gateway/deployment.yaml
+  - api-gateway/service.yaml
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - appointment-service/deployment.yaml
+  - appointment-service/service.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - ingress.yaml

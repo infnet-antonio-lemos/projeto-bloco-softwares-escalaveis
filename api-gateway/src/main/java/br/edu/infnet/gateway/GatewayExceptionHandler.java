@@ -10,10 +10,10 @@ import org.springframework.web.client.ResourceAccessException;
 /**
  * Traduz falhas de roteamento em respostas úteis ao cliente.
  *
- * <p>Sem isto, um serviço fora do ar (ou ainda não registrado no Eureka) faz o
- * LoadBalancer lançar {@code HttpServerErrorException} e o Tomcat devolver uma
- * página HTML de erro 500 — que o frontend exibe como falha genérica, escondendo
- * a causa real. Aqui a resposta vira um 503 em texto puro, consistente com o
+ * <p>Sem isto, um serviço fora do ar faz o cliente HTTP lançar
+ * {@code ResourceAccessException} (ou {@code HttpServerErrorException}) e o Tomcat
+ * devolver uma página HTML de erro 500 — que o frontend exibe como falha genérica,
+ * escondendo a causa real. Aqui a resposta vira um 503 em texto puro, consistente com o
  * contrato de erro dos demais serviços.
  */
 @RestControllerAdvice
