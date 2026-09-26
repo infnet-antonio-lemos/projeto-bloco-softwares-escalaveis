@@ -1,5 +1,9 @@
 package br.edu.infnet.petclinic.owner;
 
+import br.edu.infnet.petclinic.events.DomainEventPublisher;
+import br.edu.infnet.petclinic.events.EventContract;
+import br.edu.infnet.petclinic.events.dto.OwnerSnapshot;
+import br.edu.infnet.petclinic.pet.Pet;
 import br.edu.infnet.petclinic.owner.dto.OwnerRequest;
 import br.edu.infnet.petclinic.owner.dto.OwnerResponse;
 import br.edu.infnet.petclinic.owner.dto.OwnerRevisionResponse;
@@ -23,6 +27,7 @@ import java.util.NoSuchElementException;
 public class OwnerService {
 
     private final OwnerRepository repository;
+    private final DomainEventPublisher events;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -48,7 +53,9 @@ public class OwnerService {
                 .phone(request.phone())
                 .address(request.address())
                 .build();
-        return OwnerResponse.from(repository.save(owner));
+        Owner saved = repository.save(owner);
+        events.publish(EventContract.OWNER_CREATED, "owner", saved.getId(), snapshotOf(saved));
+        return OwnerResponse.from(saved);
     }
 
     public OwnerResponse update(Long id, OwnerRequest request) {
@@ -58,14 +65,25 @@ public class OwnerService {
         owner.setEmail(request.email());
         owner.setPhone(request.phone());
         owner.setAddress(request.address());
-        return OwnerResponse.from(repository.save(owner));
+        Owner saved = repository.save(owner);
+        events.publish(EventContract.OWNER_UPDATED, "owner", saved.getId(), snapshotOf(saved));
+        return OwnerResponse.from(saved);
     }
 
     public void delete(Long id) {
-        if (!repository.existsById(id)) {
-            throw new NoSuchElementException("Owner not found: " + id);
-        }
-        repository.deleteById(id);
+        Owner owner = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Owner not found: " + id));
+        OwnerSnapshot snapshot = snapshotOf(owner);
+        repository.delete(owner);
+        events.publish(EventContract.OWNER_DELETED, "owner", id, snapshot);
+    }
+
+    private OwnerSnapshot snapshotOf(Owner owner) {
+        List<Long> petIds = owner.getPets() == null
+                ? List.of()
+                : owner.getPets().stream().map(Pet::getId).toList();
+        return new OwnerSnapshot(
+                owner.getId(), owner.getName(), owner.getEmail(), owner.getPhone(), petIds);
     }
 
     /**
