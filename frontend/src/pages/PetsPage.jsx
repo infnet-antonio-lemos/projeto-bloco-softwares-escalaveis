@@ -60,7 +60,10 @@ export default function PetsPage() {
           ))}
         </select>
       </div>
+      {/* key muda ao alternar entre criar e editar: o React remonta o formulário
+          e ele reinicializa o estado a partir de `initial`, sem useEffect. */}
       <PetForm
+        key={editing?.id ?? 'new'}
         initial={editing}
         owners={owners}
         onSubmit={handleSubmit}

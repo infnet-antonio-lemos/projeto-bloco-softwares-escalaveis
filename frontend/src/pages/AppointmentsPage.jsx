@@ -81,7 +81,10 @@ export default function AppointmentsPage() {
           ))}
         </select>
       </div>
+      {/* key muda ao alternar entre criar e editar: o React remonta o formulário
+          e ele reinicializa o estado a partir de `initial`, sem useEffect. */}
       <AppointmentForm
+        key={editing?.id ?? 'new'}
         initial={editing}
         pets={pets}
         onSubmit={handleSubmit}

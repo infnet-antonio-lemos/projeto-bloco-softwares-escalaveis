@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const EMPTY = { petId: '', scheduledAt: '', veterinarian: '', reason: '', notes: '' };
 
@@ -15,22 +15,20 @@ const nowAsInputValue = () => {
   return now.toISOString().slice(0, 16);
 };
 
-export default function AppointmentForm({ initial, pets, onSubmit, onCancel }) {
-  const [form, setForm] = useState(EMPTY);
+const formFor = (appointment) =>
+  appointment
+    ? {
+        petId: appointment.petId,
+        scheduledAt: toInputValue(appointment.scheduledAt),
+        veterinarian: appointment.veterinarian,
+        reason: appointment.reason || '',
+        notes: appointment.notes || '',
+      }
+    : EMPTY;
 
-  useEffect(() => {
-    setForm(
-      initial
-        ? {
-            petId: initial.petId,
-            scheduledAt: toInputValue(initial.scheduledAt),
-            veterinarian: initial.veterinarian,
-            reason: initial.reason || '',
-            notes: initial.notes || '',
-          }
-        : EMPTY
-    );
-  }, [initial]);
+// Estado inicializado uma vez; a troca de registro remonta via `key` na página.
+export default function AppointmentForm({ initial, pets, onSubmit, onCancel }) {
+  const [form, setForm] = useState(() => formFor(initial));
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 

@@ -1,24 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const SPECIES = ['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'];
 const EMPTY = { name: '', species: 'DOG', breed: '', birthDate: '', ownerId: '' };
 
-export default function PetForm({ initial, owners, onSubmit, onCancel }) {
-  const [form, setForm] = useState(EMPTY);
+const formFor = (pet) =>
+  pet
+    ? {
+        name: pet.name,
+        species: pet.species,
+        breed: pet.breed || '',
+        birthDate: pet.birthDate || '',
+        ownerId: pet.ownerId,
+      }
+    : EMPTY;
 
-  useEffect(() => {
-    setForm(
-      initial
-        ? {
-            name: initial.name,
-            species: initial.species,
-            breed: initial.breed || '',
-            birthDate: initial.birthDate || '',
-            ownerId: initial.ownerId,
-          }
-        : EMPTY
-    );
-  }, [initial]);
+// Estado inicializado uma vez; a troca de registro remonta via `key` na página.
+export default function PetForm({ initial, owners, onSubmit, onCancel }) {
+  const [form, setForm] = useState(() => formFor(initial));
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 

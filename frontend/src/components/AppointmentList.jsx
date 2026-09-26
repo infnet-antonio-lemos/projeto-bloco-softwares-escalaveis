@@ -21,8 +21,9 @@ export default function AppointmentList({ appointments, onEdit, onChangeStatus, 
         {appointments.map((a) => (
           <tr key={a.id}>
             <td>{formatDateTime(a.scheduledAt)}</td>
-            {/* petName/ownerName vêm do snapshot gravado pelo microsserviço no
-                momento do agendamento, obtido do cadastro de pets via Feign */}
+            {/* petName/ownerName vêm do snapshot que o appointment-service gravou no
+                momento do agendamento, a partir da sua projeção local — não de uma
+                chamada ao cadastro de pets */}
             <td>{a.petName}</td>
             <td>{a.ownerName}</td>
             <td>{a.veterinarian}</td>

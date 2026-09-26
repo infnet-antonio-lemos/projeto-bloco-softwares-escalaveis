@@ -39,7 +39,10 @@ export default function OwnersPage() {
     <div className="page">
       <h1>Owners</h1>
       {error && <p className="error">{error}</p>}
+      {/* key muda ao alternar entre criar e editar: o React remonta o formulário
+          e ele reinicializa o estado a partir de `initial`, sem useEffect. */}
       <OwnerForm
+        key={editing?.id ?? 'new'}
         initial={editing}
         onSubmit={handleSubmit}
         onCancel={() => setEditing(null)}
